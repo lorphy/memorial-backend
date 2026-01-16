@@ -25,12 +25,22 @@ uploadDirs.forEach(dir => {
 
 // 中间件
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://memorial-backend-xl42.onrender.com',
-    'https://memorial-frontend.onrender.com'
-  ],
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://memorial-backend-xl42.onrender.com',
+      'https://memorial-front.onrender.com'
+    ]
+    // 允许没有 origin 的请求（如移动端应用）
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true)
+    } else {
+      console.log('CORS blocked origin:', origin)
+      callback(new Error('不允许的跨域请求'))
+    }
+  },
   credentials: true
 }))
 app.use(express.json())
