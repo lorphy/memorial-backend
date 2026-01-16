@@ -15,8 +15,5 @@ COPY . .
 # 创建uploads目录
 RUN mkdir -p uploads/photos uploads/videos uploads/audios uploads/documents uploads/avatars
 
-# 暴露端口
-EXPOSE 10000
 
-# 启动应用
 CMD ["node", "server.js"]
