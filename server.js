@@ -24,24 +24,13 @@ uploadDirs.forEach(dir => {
 })
 
 // 中间件
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'https://memorial-frontend.onrender.com'
-]
-
 app.use(cors({
-  origin: function (origin, callback) {
-    // 允许无 origin 的请求（如移动端应用）
-    if (!origin) return callback(null, true)
-    // 允许在列表中的 origin
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true)
-    } else {
-      console.log('CORS blocked origin:', origin)
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://memorial-backend-xl42.onrender.com',
+    'https://memorial-frontend.onrender.com'
+  ],
   credentials: true
 }))
 app.use(express.json())
@@ -105,9 +94,11 @@ mongoose.connection.on('disconnected', () => {
 // 路由
 import authRoutes from './routes/auth.js'
 import memorialRoutes from './routes/memorial.js'
+import communityRoutes from './routes/community.js'
 
 app.use('/api/auth', authRoutes)
 app.use('/api/memorials', memorialRoutes)
+app.use('/api/community', communityRoutes)
 
 // 健康检查
 app.get('/api/health', (req, res) => {
