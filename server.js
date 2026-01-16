@@ -28,25 +28,46 @@ app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// 静态文件服务 - 放在路由之前
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
-
-// 请求日志中间件 - 简化版，避免干扰multer
+// 请求日志中间件
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString()
-  console.log(`\n[${timestamp}] ${req.method} ${req.url}`)
-  const contentType = req.get('Content-Type')
-  if (contentType) {
-    console.log('Content-Type:', contentType)
+  console.log(`\n========== ${timestamp} ==========`)
+  console.log(`${req.method} ${req.url}`)
+  console.log('Headers:', JSON.stringify(req.headers, null, 2))
+  console.log('Query:', req.query)
+
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    console.log('Content-Type:', req.get('Content-Type'))
+    if (!req.get('Content-Type')?.includes('multipart/form-data')) {
+      console.log('Body:', req.body)
+    }
   }
+
+  // 响应日志
+  const originalSend = res.send
+  res.send = function(data) {
+    console.log(`\n响应状态: ${res.statusCode}`)
+    console.log(`响应数据类型: ${typeof data}`)
+    if (typeof data === 'string') {
+      console.log(`响应内容: ${data.substring(0, 200)}${data.length > 200 ? '...' : ''}`)
+    } else if (data) {
+      console.log(`响应内容:`, data)
+    }
+    console.log('=====================================\n')
+    originalSend.call(this, data)
+  }
+
   next()
 })
 
+// 静态文件服务
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+
 // 数据库连接
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/memorial_db')
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('MongoDB 连接成功')
-    console.log('数据库 URI:', process.env.MONGODB_URI || 'mongodb://localhost:27017/memorial_db')
+    console.log('数据库 URI:', process.env.MONGODB_URI)
   })
   .catch(err => {
     console.error('MongoDB 连接失败:', err)
@@ -65,11 +86,9 @@ mongoose.connection.on('disconnected', () => {
 // 路由
 import authRoutes from './routes/auth.js'
 import memorialRoutes from './routes/memorial.js'
-import communityRoutes from './routes/community.js'
 
 app.use('/api/auth', authRoutes)
 app.use('/api/memorials', memorialRoutes)
-app.use('/api/community', communityRoutes)
 
 // 健康检查
 app.get('/api/health', (req, res) => {
@@ -79,18 +98,8 @@ app.get('/api/health', (req, res) => {
 
 // 错误处理
 app.use((err, req, res, next) => {
-  console.error('\n========== 全局错误处理 ==========')
-  console.error('错误名称:', err.name)
-  console.error('错误消息:', err.message)
-  if (err.stack) {
-    console.error('错误堆栈:', err.stack)
-  }
-  console.error('=====================================\n')
-
-  res.status(err.status || 500).json({
-    message: err.message || '服务器内部错误',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  })
+  console.error(err.stack)
+  res.status(500).json({ message: '服务器内部错误' })
 })
 
 const PORT = process.env.PORT || 5000
