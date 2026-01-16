@@ -12,15 +12,29 @@ router.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body
 
+    console.log('收到注册请求:', { username, email })
+
+    // 检查必填字段
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: '请填写所有必填字段' })
+    }
+
+    // 检查密码长度
+    if (password.length < 6) {
+      return res.status(400).json({ message: '密码长度至少为6位' })
+    }
+
     const existingUser = await User.findOne({
       $or: [{ email }, { username }]
     })
 
     if (existingUser) {
+      console.log('用户已存在:', existingUser.email || existingUser.username)
       return res.status(400).json({ message: '用户名或邮箱已存在' })
     }
 
     const hashedPassword = await bcrypt.hash(password, 10)
+    console.log('密码加密成功')
 
     const user = new User({
       username,
@@ -29,10 +43,11 @@ router.post('/register', async (req, res) => {
     })
 
     await user.save()
+    console.log('用户保存成功:', user._id)
 
     const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'your_jwt_secret_key',
       { expiresIn: '7d' }
     )
 
@@ -47,7 +62,10 @@ router.post('/register', async (req, res) => {
     })
   } catch (error) {
     console.error('注册错误:', error)
-    res.status(500).json({ message: '服务器错误' })
+    if (error.code === 11000) {
+      return res.status(400).json({ message: '用户名或邮箱已存在' })
+    }
+    res.status(500).json({ message: '服务器错误', error: error.message })
   }
 })
 
@@ -56,15 +74,23 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body
 
+    console.log('收到登录请求:', { email })
+
+    if (!email || !password) {
+      return res.status(400).json({ message: '请填写邮箱和密码' })
+    }
+
     const user = await User.findOne({ email })
 
     if (!user) {
+      console.log('用户不存在:', email)
       return res.status(400).json({ message: '邮箱或密码错误' })
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password)
 
     if (!isPasswordValid) {
+      console.log('密码错误:', email)
       return res.status(400).json({ message: '邮箱或密码错误' })
     }
 
@@ -73,6 +99,8 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET || 'your_jwt_secret_key',
       { expiresIn: '7d' }
     )
+
+    console.log('登录成功:', user.username)
 
     res.json({
       message: '登录成功',
@@ -85,7 +113,7 @@ router.post('/login', async (req, res) => {
     })
   } catch (error) {
     console.error('登录错误:', error)
-    res.status(500).json({ message: '服务器错误' })
+    res.status(500).json({ message: '服务器错误', error: error.message })
   }
 })
 
@@ -118,7 +146,7 @@ router.post('/forgot-password', async (req, res) => {
     console.log('重置 Token 已生成:', resetToken)
 
     // 构建重置链接
-    const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password/${resetToken}`
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`
 
     console.log('重置链接:', resetUrl)
 
